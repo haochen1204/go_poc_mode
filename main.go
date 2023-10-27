@@ -24,6 +24,7 @@ var (
 	threads     int
 	output_file string
 	print       printer
+	att         bool
 )
 
 type printer struct {
@@ -31,6 +32,36 @@ type printer struct {
 	yellow *color.Color
 	blue   *color.Color
 	green  *color.Color
+}
+
+func check_from_url(target_url *string) string {
+	path := "/xxx/xxx?admin=xxxx"
+	targetUrl := *target_url + path
+	body := "token=xxxx"
+	reader := strings.NewReader(body)
+	myrequest, err := request.NewPlan("POST", targetUrl, reader)
+	if err != nil {
+		panic(err)
+	}
+	myrequest.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux aarch64; rv:102.0) Gecko/20100101 Firefox/102.0")
+	client := set_proxy()
+	resp, err := client.Do(myrequest)
+	if err != nil {
+		print.red.Println("[-] " + *target_url + " 访问错误")
+	} else {
+		bodys, err := request.BodyBytes(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		body_data := string(bodys)
+		if strings.Contains(body_data, "xxx") && resp.StatusCode() == 200 {
+			print.green.Println("[+] " + *target_url + " 存在漏洞")
+			return *target_url
+		} else {
+			print.yellow.Println("[-] " + *target_url + " 不存在漏洞")
+		}
+	}
+	return ""
 }
 
 func attack_from_url(target_url *string) string {
@@ -99,8 +130,13 @@ func attack_from_file(target_file *string) {
 
 func attack_from_urls(target_chan, string_chan chan string) {
 	for target_url := range target_chan {
-		data := attack_from_url(&target_url)
-		string_chan <- data
+		if att {
+			data := attack_from_url(&target_url)
+			string_chan <- data
+		} else {
+			data := check_from_url(&target_url)
+			string_chan <- data
+		}
 	}
 }
 
@@ -224,13 +260,22 @@ func main() {
 				Destination: &threads,
 				Value:       20,
 			},
+			cli.BoolFlag{
+				Name:        "attack,att",
+				Usage:       "是否使用poc尝试攻击（默认为检测）",
+				Destination: &att,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if target_url != "" && target_file != "" {
 				print.red.Println("[-] 请选择到底是进行单个扫描还是进行批量扫描！")
 				os.Exit(0)
 			} else if target_url != "" {
-				attack_from_url(&target_url)
+				if att {
+					attack_from_url(&target_url)
+				} else {
+					check_from_url(&target_url)
+				}
 			} else if target_file != "" {
 				attack_from_file(&target_file)
 			}
