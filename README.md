@@ -1,5 +1,11 @@
 # GO语言版 poc模版
 
+# 2023.10.27更新
+
+增加参数-att,默认为检查，尽可能降低危害，使用参数-att后可进行上传木马等操作
+
+具体代码为attack_from_url，将之前的attack_from_url修改为check_from_url，用来进行默认的无危害检查。
+
 # 2023.5.26更新
 
 使用httpx库替换net/http标准库
